@@ -1,10 +1,11 @@
 [package]
 name = "openvpn-management"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Thomas Morgan <tamorgan@outlook.com>"]
 edition = "2018"
 description = "a wrapper to the openvpn management interface"
 license = "MIT"
+repository = "https://github.com/tmorgansl/openvpn-management"
 
 [dependencies]
 chrono = "0.4.6"
