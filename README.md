@@ -1,3 +1,10 @@
+Openvpn Management
+=========================
+[![Build Status](https://travis-ci.com/tmorgansl/openvpn-management.svg?branch=master)](https://travis-ci.com/tmorgansl/openvpn-management)
+[![License](https://img.shields.io/github/license/tmorgansl/openvpn-management.svg)]()
+[![Crates.io](https://img.shields.io/crates/v/openvpn-management.svg)](https://crates.io/crates/openvpn-management)
+[![Docs.rs](https://docs.rs/openvpn-management/badge.svg)](https://docs.rs/openvpn-management)
+
 openvpn-management is a wrapper to the [openvpn management interface](https://openvpn.net/community-resources/management-interface/) for rust applications.
 # Install:
 The crate is called `openvpn-management` and you can depend on it via cargo:
