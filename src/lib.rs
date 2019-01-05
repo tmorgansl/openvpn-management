@@ -61,7 +61,7 @@ pub struct Status {
 }
 
 impl Status {
-    pub fn clients(&self) -> &Vec<Client> {
+    pub fn clients(&self) -> &[Client] {
         &self.clients
     }
 }

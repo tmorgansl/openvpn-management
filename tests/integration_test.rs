@@ -119,7 +119,7 @@ fn test_multiple_clients_details() {
     let status_response = api.get_status();
     assert!(status_response.is_ok());
     let status = status_response.unwrap();
-    assert_eq!(&expected_clients, status.clients());
+    assert_eq!(expected_clients.as_slice(), status.clients());
     handle.join().unwrap();
 }
 
