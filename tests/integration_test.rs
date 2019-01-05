@@ -7,18 +7,15 @@ use std::thread;
 
 fn setup_tcp_server(port: u16, response: &'static str) -> thread::JoinHandle<()> {
     let mut connection_string = "localhost:".to_string();
-    connection_string.push_str(&mut port.to_string());
+    connection_string.push_str(&port.to_string());
     let listener = TcpListener::bind(connection_string).unwrap();
     thread::spawn(move || {
-        for client_stream in listener.incoming() {
-            let mut stream = client_stream.unwrap();
-            let mut reader = BufReader::new(&stream);
-            let mut output = String::new();
-            reader.read_line(&mut output).unwrap();
-            assert_eq!("status\n".to_string(), output);
-            stream.write(response.as_bytes()).unwrap();
-            break;
-        }
+        let mut stream = listener.accept().unwrap().0;
+        let mut reader = BufReader::new(&stream);
+        let mut output = String::new();
+        reader.read_line(&mut output).unwrap();
+        assert_eq!("status\n".to_string(), output);
+        stream.write_all(response.as_bytes()).unwrap();
     })
 }
 
@@ -86,7 +83,7 @@ fn test_client_details_too_short_in_response() {
 #[test]
 fn test_client_correct_details_in_response() {
     let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
-    let expected_client = new_mock_client("test-client", "127.0.0.1", 1546277714, 100.0, 200.0);
+    let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
     let handle = setup_tcp_server(5555, server_response);
     let mut api = openvpn_management::CommandManagerBuilder::new().build();
     let status_response = api.get_status();
@@ -105,14 +102,14 @@ fn test_multiple_clients_details() {
     expected_clients.push(new_mock_client(
         "test-client",
         "127.0.0.1",
-        1546277714,
+        1_546_277_714,
         100.0,
         200.0,
     ));
     expected_clients.push(new_mock_client(
         "test-client2",
         "192.168.0.3",
-        1546277715,
+        1_546_277_715,
         300.0,
         400.0,
     ));
