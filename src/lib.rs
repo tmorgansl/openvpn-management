@@ -82,7 +82,7 @@ impl EventManager for CommandManager {
     */
     fn get_status(&mut self) -> Result<Status> {
         let mut stream = TcpStream::connect(self.management_url.to_owned())?;
-        stream.write("status\n".as_bytes())?;
+        stream.write_all(b"status\n")?;
         let mut reader = BufReader::new(&stream);
 
         let mut output = String::new();
@@ -91,7 +91,7 @@ impl EventManager for CommandManager {
         }
 
         let clients = parse_status_output(output)?;
-        Ok(Status { clients: clients })
+        Ok(Status { clients })
     }
 }
 
@@ -101,9 +101,7 @@ pub struct CommandManagerBuilder {
 
 impl CommandManagerBuilder {
     pub fn new() -> Self {
-        CommandManagerBuilder {
-            management_url: DEFAULT_MANAGEMENT_URL.to_owned(),
-        }
+        Default::default()
     }
 
     pub fn management_url(&mut self, url: &str) -> &mut CommandManagerBuilder {
@@ -118,8 +116,16 @@ impl CommandManagerBuilder {
     }
 }
 
+impl Default for CommandManagerBuilder {
+    fn default() -> Self {
+        CommandManagerBuilder {
+            management_url: DEFAULT_MANAGEMENT_URL.to_owned(),
+        }
+    }
+}
+
 fn parse_status_output(output: String) -> Result<Vec<Client>> {
-    let split = output.split("\n");
+    let split = output.split('\n');
     let mut clients = Vec::new();
     let mut has_client_list = false;
     for s in split {
@@ -128,7 +134,7 @@ fn parse_status_output(output: String) -> Result<Vec<Client>> {
             has_client_list = true;
         }
         if line.starts_with(START_LINE) {
-            let client = parse_client(line)?;
+            let client = parse_client(&line)?;
             if client.name() != UNDEF {
                 clients.push(client);
             }
@@ -140,16 +146,16 @@ fn parse_status_output(output: String) -> Result<Vec<Client>> {
     Err(OpenvpnError::MalformedResponse(output))
 }
 
-fn parse_client(raw_client: String) -> Result<Client> {
-    let split = raw_client.split("\t");
+fn parse_client(raw_client: &str) -> Result<Client> {
+    let split = raw_client.split('\t');
     let vec = split.collect::<Vec<&str>>();
     if vec.len() < 9 {
-        return Err(OpenvpnError::MalformedResponse(raw_client.clone()));
+        return Err(OpenvpnError::MalformedResponse(raw_client.to_string()));
     }
     let name = vec[1];
-    let address = match vec[2].split(":").next() {
+    let address = match vec[2].split(':').next() {
         Some(a) => a,
-        None => return Err(OpenvpnError::MalformedResponse(raw_client.clone())),
+        None => return Err(OpenvpnError::MalformedResponse(raw_client.to_string())),
     };
     let timestamp = vec[8].parse::<i64>()?;
     let bytes_received = vec[5].parse::<f64>()?;

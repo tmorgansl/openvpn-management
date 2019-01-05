@@ -20,11 +20,11 @@ impl Client {
         bytes_sent: f64,
     ) -> Client {
         Client {
-            name: name,
-            ip_address: ip_address,
-            connected_since: connected_since,
-            bytes_received: bytes_received,
-            bytes_sent: bytes_sent,
+            name,
+            ip_address,
+            connected_since,
+            bytes_received,
+            bytes_sent,
         }
     }
 
