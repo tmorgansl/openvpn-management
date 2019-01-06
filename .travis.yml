@@ -11,6 +11,20 @@ matrix:
     
 cache: cargo
 
+before_script:
+  if [[ "$TRAVIS_RUST_VERSION" == stable ]]; then
+    rustup component add clippy-preview;
+    rustup component add rustfmt-preview;
+  elif [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+    rustup component add clippy || cargo install --git https://github.com/rust-lang/rust-clippy/ --force clippy;
+    rustup component add rustfmt;
+  else
+    rustup component add clippy;
+    rustup component add rustfmt;
+  fi
+
 script:
   - cargo build
+  - cargo fmt -- --check
+  - cargo clippy --all-targets --all-features -- -D warnings
   - cargo test -- --test-threads=1
