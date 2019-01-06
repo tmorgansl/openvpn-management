@@ -42,7 +42,7 @@ mod error;
 
 pub use crate::client::Client;
 pub use crate::error::{OpenvpnError, OpenvpnResult as Result};
-use chrono::prelude::{DateTime, Local, TimeZone};
+use chrono::prelude::{DateTime, TimeZone, Utc};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 
@@ -157,12 +157,12 @@ fn parse_client(raw_client: &str) -> Result<Client> {
     Ok(Client::new(
         String::from(name),
         String::from(address),
-        get_local_start_time(timestamp),
+        get_utc_start_time(timestamp),
         bytes_received,
         bytes_sent,
     ))
 }
 
-fn get_local_start_time(timestamp: i64) -> DateTime<Local> {
-    Local.timestamp(timestamp, 0)
+fn get_utc_start_time(timestamp: i64) -> DateTime<Utc> {
+    Utc.timestamp(timestamp, 0)
 }
