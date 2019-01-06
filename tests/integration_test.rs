@@ -1,5 +1,5 @@
 extern crate openvpn_management;
-use chrono::prelude::{DateTime, Local, TimeZone};
+use chrono::prelude::{DateTime, TimeZone, Utc};
 use openvpn_management::{Client, EventManager, OpenvpnError};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
@@ -26,7 +26,7 @@ fn new_mock_client(
     bytes_received: f64,
     bytes_sent: f64,
 ) -> Client {
-    let datetime: DateTime<Local> = Local.timestamp(epoch_seconds, 0);
+    let datetime: DateTime<Utc> = Utc.timestamp(epoch_seconds, 0);
     Client::new(
         name.to_string(),
         ip_address.to_string(),

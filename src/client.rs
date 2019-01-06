@@ -1,11 +1,11 @@
-use chrono::prelude::{DateTime, Local};
+use chrono::prelude::{DateTime, Utc};
 
 #[derive(Clone, Debug, PartialEq)]
 /// Contains useful information on a client which is connected to the openvpn server
 pub struct Client {
     name: String,
     ip_address: String,
-    connected_since: DateTime<Local>,
+    connected_since: DateTime<Utc>,
     bytes_received: f64,
     bytes_sent: f64,
 }
@@ -14,7 +14,7 @@ impl Client {
     pub fn new(
         name: String,
         ip_address: String,
-        connected_since: DateTime<Local>,
+        connected_since: DateTime<Utc>,
         bytes_received: f64,
         bytes_sent: f64,
     ) -> Client {
@@ -38,7 +38,7 @@ impl Client {
     }
 
     /// Date time they connected at
-    pub fn connected_since(&self) -> &DateTime<Local> {
+    pub fn connected_since(&self) -> &DateTime<Utc> {
         &self.connected_since
     }
 
