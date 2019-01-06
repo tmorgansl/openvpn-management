@@ -61,7 +61,7 @@ pub struct Status {
 }
 
 impl Status {
-    pub fn clients(&self) -> &Vec<Client> {
+    pub fn clients(&self) -> &[Client] {
         &self.clients
     }
 }
@@ -147,19 +147,18 @@ fn parse_status_output(output: String) -> Result<Vec<Client>> {
 }
 
 fn parse_client(raw_client: &str) -> Result<Client> {
-    let split = raw_client.split('\t');
-    let vec = split.collect::<Vec<&str>>();
+    let vec: Vec<_> = raw_client.split('\t').collect();
     if vec.len() < 9 {
         return Err(OpenvpnError::MalformedResponse(raw_client.to_string()));
     }
     let name = vec[1];
-    let address = match vec[2].split(':').next() {
-        Some(a) => a,
-        None => return Err(OpenvpnError::MalformedResponse(raw_client.to_string())),
-    };
-    let timestamp = vec[8].parse::<i64>()?;
-    let bytes_received = vec[5].parse::<f64>()?;
-    let bytes_sent = vec[6].parse::<f64>()?;
+    let address = vec[2]
+        .split(':')
+        .next()
+        .ok_or_else(|| OpenvpnError::MalformedResponse(raw_client.to_string()))?;
+    let timestamp: i64 = vec[8].parse()?;
+    let bytes_received: f64 = vec[5].parse()?;
+    let bytes_sent: f64 = vec[6].parse()?;
     Ok(Client::new(
         String::from(name),
         String::from(address),
@@ -170,6 +169,5 @@ fn parse_client(raw_client: &str) -> Result<Client> {
 }
 
 fn get_local_start_time(timestamp: i64) -> DateTime<Local> {
-    let datetime: DateTime<Local> = Local.timestamp(timestamp, 0);
-    datetime
+    Local.timestamp(timestamp, 0)
 }

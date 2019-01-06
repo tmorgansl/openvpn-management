@@ -1,7 +1,6 @@
 use chrono::prelude::{DateTime, Local};
-use std::cmp::PartialEq;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// Contains useful information on a client which is connected to the openvpn server
 pub struct Client {
     name: String,
@@ -29,12 +28,12 @@ impl Client {
     }
 
     /// Common Name
-    pub fn name(&self) -> &String {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
     /// Remote IP address
-    pub fn ip_address(&self) -> &String {
+    pub fn ip_address(&self) -> &str {
         &self.ip_address
     }
 
@@ -44,22 +43,12 @@ impl Client {
     }
 
     /// Bytes received from the client
-    pub fn bytes_received(&self) -> &f64 {
-        &self.bytes_received
+    pub fn bytes_received(&self) -> f64 {
+        self.bytes_received
     }
 
     /// Bytes sent to remote servers
-    pub fn bytes_sent(&self) -> &f64 {
-        &self.bytes_sent
-    }
-}
-
-impl PartialEq for Client {
-    fn eq(&self, other: &Client) -> bool {
-        self.name == other.name
-            && self.ip_address == other.ip_address
-            && self.bytes_received == other.bytes_received
-            && self.bytes_sent == other.bytes_sent
-            && self.connected_since == other.connected_since
+    pub fn bytes_sent(&self) -> f64 {
+        self.bytes_sent
     }
 }
