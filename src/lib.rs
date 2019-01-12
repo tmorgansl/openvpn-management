@@ -58,6 +58,10 @@ pub struct Status {
 }
 
 impl Status {
+    pub fn new(clients: Vec<Client>) -> Status {
+        Status { clients }
+    }
+
     pub fn clients(&self) -> &[Client] {
         &self.clients
     }
