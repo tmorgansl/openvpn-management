@@ -14,7 +14,7 @@
 //! # use std::io::{BufRead, BufReader, Write};
 //! # use std::thread;
 //! # let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
-//! # let listener = TcpListener::bind("localhost:5555".to_string()).unwrap();
+//! # let listener = TcpListener::bind("127.0.0.1:5555".to_string()).unwrap();
 //! # thread::spawn(move || {
 //! #    for client_stream in listener.incoming() {
 //! #        let mut stream = client_stream.unwrap();
@@ -28,8 +28,9 @@
 //! # });
 //! // build the client:
 //! let mut event_manager = openvpn_management::CommandManagerBuilder::new()
-//!     .management_url("localhost:5555")
-//!     .build();
+//!     .management_url("127.0.0.1:5555")
+//!     .build()
+//!     .unwrap();
 //! // get the current status:
 //! let status = event_manager
 //!     .get_status()
@@ -44,9 +45,10 @@ pub use crate::client::Client;
 pub use crate::error::{OpenvpnError, OpenvpnResult as Result};
 use chrono::prelude::{DateTime, TimeZone, Utc};
 use std::io::{BufRead, BufReader, Write};
-use std::net::TcpStream;
+use std::net::{SocketAddr, TcpStream};
+use std::time::Duration;
 
-const DEFAULT_MANAGEMENT_URL: &str = "localhost:5555";
+const DEFAULT_MANAGEMENT_URL: &str = "127.0.0.1:5555";
 const ENDING: &str = "END";
 const START_LINE: &str = "CLIENT_LIST";
 const HEADER_START_LINE: &str = "HEADER\tCLIENT_LIST";
@@ -68,7 +70,9 @@ impl Status {
 }
 
 pub struct CommandManager {
-    management_url: String,
+    management_address: SocketAddr,
+    connect_timeout: Option<Duration>,
+    read_timeout: Option<Duration>,
 }
 
 pub trait EventManager {
@@ -80,7 +84,11 @@ impl EventManager for CommandManager {
     /// The response is then parsed into the status response with the client information. This
     /// can be used by applications which are polling the management interface for status updates
     fn get_status(&mut self) -> Result<Status> {
-        let mut stream = TcpStream::connect(self.management_url.to_owned())?;
+        let mut stream = match self.connect_timeout {
+            Some(ct) => TcpStream::connect_timeout(&self.management_address, ct)?,
+            None => TcpStream::connect(&self.management_address)?,
+        };
+        stream.set_read_timeout(self.read_timeout)?;
         stream.write_all(b"status\n")?;
         let mut reader = BufReader::new(&stream);
 
@@ -96,6 +104,8 @@ impl EventManager for CommandManager {
 
 pub struct CommandManagerBuilder {
     management_url: String,
+    connect_timeout: Option<Duration>,
+    read_timeout: Option<Duration>,
 }
 
 impl CommandManagerBuilder {
@@ -103,15 +113,32 @@ impl CommandManagerBuilder {
         Default::default()
     }
 
-    pub fn management_url(&mut self, url: &str) -> &mut CommandManagerBuilder {
-        self.management_url = url.to_owned();
+    pub fn management_url(&mut self, management_url: &str) -> &mut CommandManagerBuilder {
+        self.management_url = management_url.to_owned();
         self
     }
 
-    pub fn build(&mut self) -> CommandManager {
-        CommandManager {
-            management_url: self.management_url.to_owned(),
-        }
+    pub fn connect_timeout(
+        &mut self,
+        connect_timeout: Option<Duration>,
+    ) -> &mut CommandManagerBuilder {
+        self.connect_timeout = connect_timeout;
+        self
+    }
+
+    pub fn read_timeout(&mut self, read_timeout: Option<Duration>) -> &mut CommandManagerBuilder {
+        self.read_timeout = read_timeout;
+        self
+    }
+
+    pub fn build(&mut self) -> Result<CommandManager> {
+        let management_address: SocketAddr = self.management_url.parse()?;
+
+        Ok(CommandManager {
+            management_address,
+            read_timeout: self.read_timeout,
+            connect_timeout: self.connect_timeout,
+        })
     }
 }
 
@@ -119,6 +146,8 @@ impl Default for CommandManagerBuilder {
     fn default() -> Self {
         CommandManagerBuilder {
             management_url: DEFAULT_MANAGEMENT_URL.to_owned(),
+            connect_timeout: None,
+            read_timeout: None,
         }
     }
 }
