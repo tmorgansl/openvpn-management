@@ -50,18 +50,34 @@ use std::time::Duration;
 
 const DEFAULT_MANAGEMENT_URL: &str = "localhost:5555";
 const ENDING: &str = "END";
-const START_LINE: &str = "CLIENT_LIST";
+const START_CLIENT_LIST: &str = "CLIENT_LIST";
+const START_TITLE: &str = "TITLE";
+const START_TIME: &str = "TIME";
 const HEADER_START_LINE: &str = "HEADER\tCLIENT_LIST";
 const UNDEF: &str = "UNDEF";
 
 #[derive(Clone, Debug)]
 pub struct Status {
+    title: String,
     clients: Vec<Client>,
+    timestamp: DateTime<Utc>,
 }
 
 impl Status {
-    pub fn new(clients: Vec<Client>) -> Status {
-        Status { clients }
+    pub fn new(title: String, timestamp: DateTime<Utc>, clients: Vec<Client>) -> Status {
+        Status {
+            title,
+            clients,
+            timestamp,
+        }
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn timestamp(&self) -> &DateTime<Utc> {
+        &self.timestamp
     }
 
     pub fn clients(&self) -> &[Client] {
@@ -97,8 +113,8 @@ impl EventManager for CommandManager {
             reader.read_line(&mut output)?;
         }
 
-        let clients = parse_status_output(output)?;
-        Ok(Status { clients })
+        let status = parse_status_output(output)?;
+        Ok(status)
     }
 }
 
@@ -113,11 +129,13 @@ impl CommandManagerBuilder {
         Default::default()
     }
 
+    /// the url for the openvpn server's management interface (e.g. 127.0.0.1:5555)
     pub fn management_url(&mut self, management_url: &str) -> &mut CommandManagerBuilder {
         self.management_url = management_url.to_owned();
         self
     }
 
+    /// the TCP connection timeout. Default value is no connection timeout (`None`)
     pub fn connect_timeout(
         &mut self,
         connect_timeout: Option<Duration>,
@@ -126,11 +144,13 @@ impl CommandManagerBuilder {
         self
     }
 
+    /// the read timeout for responses from the server. Default value is no read timeout (`None`)
     pub fn read_timeout(&mut self, read_timeout: Option<Duration>) -> &mut CommandManagerBuilder {
         self.read_timeout = read_timeout;
         self
     }
 
+    /// builds the connection manager. Returns an error if the management url is malformed or does not resolve
     pub fn build(&mut self) -> Result<CommandManager> {
         let mut addrs_iter = self.management_url.to_socket_addrs()?;
 
@@ -161,33 +181,54 @@ impl Default for CommandManagerBuilder {
     }
 }
 
-fn parse_status_output(output: String) -> Result<Vec<Client>> {
+fn parse_status_output(output: String) -> Result<Status> {
     let split = output.split('\n');
     let mut clients = Vec::new();
     let mut has_client_list = false;
+    let mut has_title = false;
+    let mut has_timestamp = false;
+    let mut timestamp: DateTime<Utc> = Utc::now();
+    let mut title = String::from("");
     for s in split {
         let line = String::from(s);
         if line.starts_with(HEADER_START_LINE) {
             has_client_list = true;
-        }
-        if line.starts_with(START_LINE) {
+        } else if line.starts_with(START_CLIENT_LIST) {
             let client = parse_client(&line)?;
             if client.name() != UNDEF {
                 clients.push(client);
             }
+        } else if line.starts_with(START_TITLE) {
+            has_title = true;
+            title = parse_title(&line)?;
+        } else if line.starts_with(START_TIME) {
+            has_timestamp = true;
+            timestamp = parse_timestamp(&line)?;
         }
     }
-    if has_client_list {
-        return Ok(clients);
+    if !has_client_list || !has_title || !has_timestamp {
+        return Err(OpenvpnError::MalformedResponse(output));
     }
-    Err(OpenvpnError::MalformedResponse(output))
+    Ok(Status::new(title, timestamp, clients))
+}
+
+fn parse_title(raw_title: &str) -> Result<String> {
+    let vec: Vec<_> = split_line_by_tabs(raw_title, 2)?;
+    let mut title = String::from(vec[1]);
+    title.pop(); // remove trailing \r
+    Ok(title)
+}
+
+fn parse_timestamp(raw_timestamp: &str) -> Result<DateTime<Utc>> {
+    let vec: Vec<_> = split_line_by_tabs(raw_timestamp, 3)?;
+    let mut raw_timestamp = String::from(vec[2]);
+    raw_timestamp.pop(); // remove trailing \r
+    let timestamp = raw_timestamp.parse()?;
+    Ok(get_utc_start_time(timestamp))
 }
 
 fn parse_client(raw_client: &str) -> Result<Client> {
-    let vec: Vec<_> = raw_client.split('\t').collect();
-    if vec.len() < 9 {
-        return Err(OpenvpnError::MalformedResponse(raw_client.to_string()));
-    }
+    let vec: Vec<_> = split_line_by_tabs(raw_client, 9)?;
     let name = vec[1];
     let address = vec[2]
         .split(':')
@@ -203,6 +244,14 @@ fn parse_client(raw_client: &str) -> Result<Client> {
         bytes_received,
         bytes_sent,
     ))
+}
+
+fn split_line_by_tabs(raw_line: &str, expected_length: usize) -> Result<Vec<&str>> {
+    let vec: Vec<_> = raw_line.split('\t').collect();
+    if vec.len() < expected_length {
+        return Err(OpenvpnError::MalformedResponse(raw_line.to_string()));
+    }
+    Ok(vec)
 }
 
 fn get_utc_start_time(timestamp: i64) -> DateTime<Utc> {
