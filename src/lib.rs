@@ -1,6 +1,6 @@
 //! openvpn-management is a wrapper to the [openvpn management interface](https://openvpn.net/community-resources/management-interface/).
 //! # Install:
-//! The crate is called `openvpn-management` and you can depend on it via cargo:
+//! The crate is called `openvpn-management` use it by adding it as a dependency to your Cargo.toml file:
 //! ```ini
 //! [dependencies]
 //! openvpn-management = "*"
@@ -76,10 +76,12 @@ impl Status {
         &self.title
     }
 
+    /// the server timestamp
     pub fn timestamp(&self) -> &DateTime<Utc> {
         &self.timestamp
     }
 
+    /// currently connected clients
     pub fn clients(&self) -> &[Client] {
         &self.clients
     }
