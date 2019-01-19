@@ -74,7 +74,7 @@ fn test_no_client_list_in_response() {
 fn test_empty_clients_in_response() {
     let server_response =
         "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nEND";
-    let expected_status = new_mock_status("test-title", 1547913893, Vec::new());
+    let expected_status = new_mock_status("test-title", 1_547_913_893, Vec::new());
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
@@ -108,7 +108,7 @@ fn test_client_details_too_short_in_response() {
 fn test_client_correct_details_in_response() {
     let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
-    let expected_status = new_mock_status("test-title", 1547913893, vec![expected_client; 1]);
+    let expected_status = new_mock_status("test-title", 1_547_913_893, vec![expected_client; 1]);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
@@ -161,7 +161,7 @@ fn test_multiple_clients_details() {
         new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0),
         new_mock_client("test-client2", "192.168.0.3", 1_546_277_715, 300.0, 400.0),
     ];
-    let expected_status = new_mock_status("test-title", 1547913893, expected_clients);
+    let expected_status = new_mock_status("test-title", 1_547_913_893, expected_clients);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
@@ -246,7 +246,7 @@ fn test_io_error_on_missing_server() {
 fn test_client_correct_details_within_read_timeout() {
     let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
-    let expected_status = new_mock_status("test-title", 1547913893, vec![expected_client; 1]);
+    let expected_status = new_mock_status("test-title", 1_547_913_893, vec![expected_client; 1]);
     let read_latency = READ_TIMEOUT - Duration::from_millis(100);
     let handle = setup_tcp_server(5555, server_response, Some(read_latency));
     let mut api = openvpn_management::CommandManagerBuilder::new()
@@ -284,7 +284,7 @@ fn test_client_error_with_slow_server_response() {
 fn test_client_correct_details_within_connect_timeout() {
     let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
-    let expected_status = new_mock_status("test-title", 1547913893, vec![expected_client; 1]);
+    let expected_status = new_mock_status("test-title", 1_547_913_893, vec![expected_client; 1]);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .connect_timeout(Some(CONNECT_TIMEOUT))
