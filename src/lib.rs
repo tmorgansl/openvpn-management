@@ -13,7 +13,7 @@
 //! # use std::net::TcpListener;
 //! # use std::io::{BufRead, BufReader, Write};
 //! # use std::thread;
-//! # let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
+//! # let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
 //! # let listener = TcpListener::bind("127.0.0.1:5555".to_string()).unwrap();
 //! # thread::spawn(move || {
 //! #    for client_stream in listener.incoming() {
@@ -56,7 +56,7 @@ const START_TIME: &str = "TIME";
 const HEADER_START_LINE: &str = "HEADER\tCLIENT_LIST";
 const UNDEF: &str = "UNDEF";
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Status {
     title: String,
     clients: Vec<Client>,
@@ -182,7 +182,7 @@ impl Default for CommandManagerBuilder {
 }
 
 fn parse_status_output(output: String) -> Result<Status> {
-    let split = output.split('\n');
+    let split = output.split("\r\n");
     let mut clients = Vec::new();
     let mut has_client_list = false;
     let mut has_title = false;
@@ -214,16 +214,12 @@ fn parse_status_output(output: String) -> Result<Status> {
 
 fn parse_title(raw_title: &str) -> Result<String> {
     let vec: Vec<_> = split_line_by_tabs(raw_title, 2)?;
-    let mut title = String::from(vec[1]);
-    title.pop(); // remove trailing \r
-    Ok(title)
+    Ok(String::from(vec[1]))
 }
 
 fn parse_timestamp(raw_timestamp: &str) -> Result<DateTime<Utc>> {
     let vec: Vec<_> = split_line_by_tabs(raw_timestamp, 3)?;
-    let mut raw_timestamp = String::from(vec[2]);
-    raw_timestamp.pop(); // remove trailing \r
-    let timestamp = raw_timestamp.parse()?;
+    let timestamp = vec[2].parse()?;
     Ok(get_utc_start_time(timestamp))
 }
 

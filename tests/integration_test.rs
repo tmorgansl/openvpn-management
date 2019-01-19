@@ -1,6 +1,6 @@
 extern crate openvpn_management;
 use chrono::prelude::{DateTime, TimeZone, Utc};
-use openvpn_management::{Client, EventManager, OpenvpnError};
+use openvpn_management::{Client, EventManager, OpenvpnError, Status};
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::thread;
@@ -47,6 +47,11 @@ fn new_mock_client(
     )
 }
 
+fn new_mock_status(title: &'static str, epoch_seconds: i64, clients: Vec<Client>) -> Status {
+    let datetime: DateTime<Utc> = Utc.timestamp(epoch_seconds, 0);
+    Status::new(String::from(title), datetime, clients)
+}
+
 #[test]
 fn test_no_client_list_in_response() {
     let server_response = "no client string END";
@@ -55,6 +60,7 @@ fn test_no_client_list_in_response() {
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_err());
     let response = match status_response {
         Err(OpenvpnError::MalformedResponse(e)) => e,
@@ -62,31 +68,33 @@ fn test_no_client_list_in_response() {
     };
 
     assert_eq!(server_response, response);
-    handle.join().unwrap();
 }
 
 #[test]
 fn test_empty_clients_in_response() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nEND";
+    let server_response =
+        "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nEND";
+    let expected_status = new_mock_status("test-title", 1547913893, Vec::new());
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_ok());
     let status = status_response.unwrap();
-    assert_eq!(0, status.clients().len());
-    handle.join().unwrap();
+    assert_eq!(expected_status, status);
 }
 
 #[test]
 fn test_client_details_too_short_in_response() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST bad\tclient\tinformation\nEND";
+    let server_response = "\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST bad\tclient\tinformation\r\nEND";
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_err());
     let response = match status_response {
         Err(OpenvpnError::MalformedResponse(e)) => e,
@@ -94,64 +102,61 @@ fn test_client_details_too_short_in_response() {
     };
 
     assert_eq!("CLIENT_LIST bad\tclient\tinformation", response);
-    handle.join().unwrap();
 }
 
 #[test]
 fn test_client_correct_details_in_response() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
+    let expected_status = new_mock_status("test-title", 1547913893, vec![expected_client; 1]);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_ok());
     let status = status_response.unwrap();
-    assert_eq!(1, status.clients().len());
-    let client = &status.clients()[0];
-    assert_eq!(&expected_client, client);
-    handle.join().unwrap();
+    assert_eq!(expected_status, status);
 }
 
 #[test]
 fn test_multiple_clients_details() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nCLIENT_LIST\ttest-client2\t192.168.0.3:12345\t10.8.0.3\t\t300\t400\tdate-string\t1546277715\nEND";
-    let mut expected_clients = Vec::new();
-    expected_clients.push(new_mock_client(
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nCLIENT_LIST\ttest-client2\t192.168.0.3:12345\t10.8.0.3\t\t300\t400\tdate-string\t1546277715\r\nEND";
+    let expected_clients = vec![new_mock_client(
         "test-client",
         "127.0.0.1",
         1_546_277_714,
         100.0,
         200.0,
-    ));
-    expected_clients.push(new_mock_client(
+    ), new_mock_client(
         "test-client2",
         "192.168.0.3",
         1_546_277_715,
         300.0,
         400.0,
-    ));
-
+    )];
+    let expected_status = new_mock_status("test-title", 1547913893, expected_clients);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_ok());
     let status = status_response.unwrap();
-    assert_eq!(expected_clients.as_slice(), status.clients());
-    handle.join().unwrap();
+    assert_eq!(expected_status, status);
 }
 
 #[test]
 fn test_parse_error_in_client_response_bytes_received() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\tNAN_STRING\t200\tdate-string\t1546277714\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\tNAN_STRING\t200\tdate-string\t1546277714\r\nEND";
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_err());
     let expected_error = match status_response {
         Err(OpenvpnError::ParseFloat(_)) => true,
@@ -159,17 +164,17 @@ fn test_parse_error_in_client_response_bytes_received() {
     };
 
     assert!(expected_error, "expected unable to parse float");
-    handle.join().unwrap();
 }
 
 #[test]
 fn test_parse_error_in_client_response_bytes_sent() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\tNAN_STRING\tdate-string\t1546277714\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\tNAN_STRING\tdate-string\t1546277714\r\nEND";
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_err());
     let expected_error = match status_response {
         Err(OpenvpnError::ParseFloat(_)) => true,
@@ -177,17 +182,17 @@ fn test_parse_error_in_client_response_bytes_sent() {
     };
 
     assert!(expected_error, "expected unable to parse float");
-    handle.join().unwrap();
 }
 
 #[test]
 fn test_parse_error_in_client_response_timestamp() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\tNAN_DATE_TIME\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\tNAN_DATE_TIME\r\nEND";
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .build()
         .expect("api build successfully");
     let status_response = api.get_status();
+    handle.join().unwrap();
     assert!(status_response.is_err());
     let expected_error = match status_response {
         Err(OpenvpnError::ParseInt(_)) => true,
@@ -195,7 +200,6 @@ fn test_parse_error_in_client_response_timestamp() {
     };
 
     assert!(expected_error, "expected unable to parse int");
-    handle.join().unwrap();
 }
 
 #[test]
@@ -215,8 +219,9 @@ fn test_io_error_on_missing_server() {
 
 #[test]
 fn test_client_correct_details_within_read_timeout() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
+    let expected_status = new_mock_status("test-title", 1547913893, vec![expected_client; 1]);
     let read_latency = READ_TIMEOUT - Duration::from_millis(100);
     let handle = setup_tcp_server(5555, server_response, Some(read_latency));
     let mut api = openvpn_management::CommandManagerBuilder::new()
@@ -227,14 +232,12 @@ fn test_client_correct_details_within_read_timeout() {
     handle.join().unwrap();
     assert!(status_response.is_ok());
     let status = status_response.unwrap();
-    assert_eq!(1, status.clients().len());
-    let client = &status.clients()[0];
-    assert_eq!(&expected_client, client);
+    assert_eq!(expected_status, status);
 }
 
 #[test]
 fn test_client_error_with_slow_server_response() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let read_latency = READ_TIMEOUT + Duration::from_millis(100);
     let handle = setup_tcp_server(5555, server_response, Some(read_latency));
     let mut api = openvpn_management::CommandManagerBuilder::new()
@@ -254,8 +257,9 @@ fn test_client_error_with_slow_server_response() {
 
 #[test]
 fn test_client_correct_details_within_connect_timeout() {
-    let server_response = "\nHEADER\tCLIENT_LIST\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\nEND";
+    let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
     let expected_client = new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0);
+    let expected_status = new_mock_status("test-title", 1547913893, vec![expected_client; 1]);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
         .connect_timeout(Some(CONNECT_TIMEOUT))
@@ -265,9 +269,7 @@ fn test_client_correct_details_within_connect_timeout() {
     handle.join().unwrap();
     assert!(status_response.is_ok());
     let status = status_response.unwrap();
-    assert_eq!(1, status.clients().len());
-    let client = &status.clients()[0];
-    assert_eq!(&expected_client, client);
+    assert_eq!(expected_status, status);
 }
 
 #[test]
