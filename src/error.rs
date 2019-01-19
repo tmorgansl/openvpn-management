@@ -1,7 +1,6 @@
 use std::error::Error;
 use std::fmt;
 use std::io;
-use std::net;
 use std::num;
 
 pub type OpenvpnResult<T> = Result<T, OpenvpnError>;
@@ -11,7 +10,6 @@ pub enum OpenvpnError {
     Io(io::Error),
     ParseInt(num::ParseIntError),
     ParseFloat(num::ParseFloatError),
-    ParseAddr(net::AddrParseError),
     MalformedResponse(String),
     MissingURLInput(String),
 }
@@ -22,17 +20,14 @@ impl fmt::Display for OpenvpnError {
             OpenvpnError::Io(ref err) => err.fmt(f),
             OpenvpnError::ParseInt(ref err) => err.fmt(f),
             OpenvpnError::ParseFloat(ref err) => err.fmt(f),
-            OpenvpnError::ParseAddr(ref err) => err.fmt(f),
             OpenvpnError::MalformedResponse(ref response) => write!(
                 f,
                 "could not parse '{}' response from openvpn server",
                 response
             ),
-            OpenvpnError::MissingURLInput(ref url) => write!(
-                f,
-                "could not parse '{}' as a URL",
-                url
-            )
+            OpenvpnError::MissingURLInput(ref url) => {
+                write!(f, "could not parse '{}' as a URL", url)
+            }
         }
     }
 }
@@ -43,7 +38,6 @@ impl Error for OpenvpnError {
             OpenvpnError::Io(ref err) => err.description(),
             OpenvpnError::ParseInt(ref err) => err.description(),
             OpenvpnError::ParseFloat(ref err) => err.description(),
-            OpenvpnError::ParseAddr(ref err) => err.description(),
             OpenvpnError::MalformedResponse(ref _response) => "malformed response",
             OpenvpnError::MissingURLInput(ref _url) => "missing url",
         }
@@ -65,11 +59,5 @@ impl From<num::ParseIntError> for OpenvpnError {
 impl From<num::ParseFloatError> for OpenvpnError {
     fn from(err: num::ParseFloatError) -> OpenvpnError {
         OpenvpnError::ParseFloat(err)
-    }
-}
-
-impl From<net::AddrParseError> for OpenvpnError {
-    fn from(err: net::AddrParseError) -> OpenvpnError {
-        OpenvpnError::ParseAddr(err)
     }
 }

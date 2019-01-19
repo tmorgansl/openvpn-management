@@ -212,8 +212,7 @@ fn get_utc_start_time(timestamp: i64) -> DateTime<Utc> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::error::Error;
-    use std::io::ErrorKind;
+    use std::io;
 
     #[test]
     fn test_management_url_parsed_correctly() {
@@ -247,11 +246,7 @@ mod tests {
             _ => panic!("expected io error"),
         };
 
-        assert_eq!(ErrorKind::Other, expected_error.kind());
-        assert_eq!(
-            "failed to lookup address information: Name or service not known",
-            expected_error.description()
-        )
+        assert_eq!(io::ErrorKind::Other, expected_error.kind());
     }
 
     #[test]
@@ -268,6 +263,6 @@ mod tests {
             _ => panic!("expected io error"),
         };
 
-        assert_eq!(ErrorKind::InvalidInput, expected_error.kind());
+        assert_eq!(io::ErrorKind::InvalidInput, expected_error.kind());
     }
 }
