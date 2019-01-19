@@ -121,21 +121,46 @@ fn test_client_correct_details_in_response() {
 }
 
 #[test]
+fn test_missing_title() {
+    let server_response = "TIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
+    let handle = setup_tcp_server(5555, server_response, None);
+    let mut api = openvpn_management::CommandManagerBuilder::new()
+        .build()
+        .expect("api build successfully");
+    let status_response = api.get_status();
+    handle.join().unwrap();
+    assert!(status_response.is_err());
+    let response = match status_response {
+        Err(OpenvpnError::MalformedResponse(e)) => e,
+        _ => panic!("was expecting malformed response"),
+    };
+    assert_eq!("TIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND", response);
+}
+
+#[test]
+fn test_missing_timestamp() {
+    let server_response = "TITLE\ttest-title\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND";
+    let handle = setup_tcp_server(5555, server_response, None);
+    let mut api = openvpn_management::CommandManagerBuilder::new()
+        .build()
+        .expect("api build successfully");
+    let status_response = api.get_status();
+    handle.join().unwrap();
+    assert!(status_response.is_err());
+    let response = match status_response {
+        Err(OpenvpnError::MalformedResponse(e)) => e,
+        _ => panic!("was expecting malformed response"),
+    };
+    assert_eq!("TITLE\ttest-title\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nEND", response);
+}
+
+#[test]
 fn test_multiple_clients_details() {
     let server_response = "TITLE\ttest-title\r\nTIME\ttimestamp\t1547913893\r\nHEADER\tCLIENT_LIST\r\nCLIENT_LIST\ttest-client\t127.0.0.1:12345\t10.8.0.2\t\t100\t200\tdate-string\t1546277714\r\nCLIENT_LIST\ttest-client2\t192.168.0.3:12345\t10.8.0.3\t\t300\t400\tdate-string\t1546277715\r\nEND";
-    let expected_clients = vec![new_mock_client(
-        "test-client",
-        "127.0.0.1",
-        1_546_277_714,
-        100.0,
-        200.0,
-    ), new_mock_client(
-        "test-client2",
-        "192.168.0.3",
-        1_546_277_715,
-        300.0,
-        400.0,
-    )];
+    let expected_clients = vec![
+        new_mock_client("test-client", "127.0.0.1", 1_546_277_714, 100.0, 200.0),
+        new_mock_client("test-client2", "192.168.0.3", 1_546_277_715, 300.0, 400.0),
+    ];
     let expected_status = new_mock_status("test-title", 1547913893, expected_clients);
     let handle = setup_tcp_server(5555, server_response, None);
     let mut api = openvpn_management::CommandManagerBuilder::new()
