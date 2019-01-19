@@ -13,6 +13,7 @@ pub enum OpenvpnError {
     ParseFloat(num::ParseFloatError),
     ParseAddr(net::AddrParseError),
     MalformedResponse(String),
+    MissingURLInput(String),
 }
 
 impl fmt::Display for OpenvpnError {
@@ -27,6 +28,11 @@ impl fmt::Display for OpenvpnError {
                 "could not parse '{}' response from openvpn server",
                 response
             ),
+            OpenvpnError::MissingURLInput(ref url) => write!(
+                f,
+                "could not parse '{}' as a URL",
+                url
+            )
         }
     }
 }
@@ -39,6 +45,7 @@ impl Error for OpenvpnError {
             OpenvpnError::ParseFloat(ref err) => err.description(),
             OpenvpnError::ParseAddr(ref err) => err.description(),
             OpenvpnError::MalformedResponse(ref _response) => "malformed response",
+            OpenvpnError::MissingURLInput(ref _url) => "missing url",
         }
     }
 }

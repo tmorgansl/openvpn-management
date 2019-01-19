@@ -20,7 +20,7 @@ openvpn-management = "*"
 ```
 // build the client:
 let mut event_manager = openvpn_management::CommandManagerBuilder::new()
-    .management_url("127.0.0.1:5555")
+    .management_url("localhost:5555")
     .build()
     .unwrap();
 // get the current status:

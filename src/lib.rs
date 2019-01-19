@@ -28,7 +28,7 @@
 //! # });
 //! // build the client:
 //! let mut event_manager = openvpn_management::CommandManagerBuilder::new()
-//!     .management_url("127.0.0.1:5555")
+//!     .management_url("localhost:5555")
 //!     .build()
 //!     .unwrap();
 //! // get the current status:
@@ -45,10 +45,10 @@ pub use crate::client::Client;
 pub use crate::error::{OpenvpnError, OpenvpnResult as Result};
 use chrono::prelude::{DateTime, TimeZone, Utc};
 use std::io::{BufRead, BufReader, Write};
-use std::net::{SocketAddr, TcpStream};
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
-const DEFAULT_MANAGEMENT_URL: &str = "127.0.0.1:5555";
+const DEFAULT_MANAGEMENT_URL: &str = "localhost:5555";
 const ENDING: &str = "END";
 const START_LINE: &str = "CLIENT_LIST";
 const HEADER_START_LINE: &str = "HEADER\tCLIENT_LIST";
@@ -132,7 +132,16 @@ impl CommandManagerBuilder {
     }
 
     pub fn build(&mut self) -> Result<CommandManager> {
-        let management_address: SocketAddr = self.management_url.parse()?;
+        let mut addrs_iter = self.management_url.to_socket_addrs()?;
+
+        let management_address: SocketAddr = match addrs_iter.next() {
+            Some(a) => a,
+            None => {
+                return Err(OpenvpnError::MissingURLInput(
+                    self.management_url.to_owned(),
+                ));
+            }
+        };
 
         Ok(CommandManager {
             management_address,
@@ -198,4 +207,67 @@ fn parse_client(raw_client: &str) -> Result<Client> {
 
 fn get_utc_start_time(timestamp: i64) -> DateTime<Utc> {
     Utc.timestamp(timestamp, 0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error;
+    use std::io::ErrorKind;
+
+    #[test]
+    fn test_management_url_parsed_correctly() {
+        let result = CommandManagerBuilder::new()
+            .management_url("192.168.0.1:12345")
+            .build();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_management_localhost_url_parsed_correctly() {
+        let result = CommandManagerBuilder::new()
+            .management_url("localhost:12345")
+            .build();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_malformed_management_url() {
+        let malformed_url = "foo:12345";
+
+        let result = CommandManagerBuilder::new()
+            .management_url(malformed_url)
+            .build();
+
+        assert!(result.is_err());
+        let expected_error = match result {
+            Err(OpenvpnError::Io(ref e)) => e,
+            _ => panic!("expected io error"),
+        };
+
+        assert_eq!(ErrorKind::Other, expected_error.kind());
+        assert_eq!(
+            "failed to lookup address information: Name or service not known",
+            expected_error.description()
+        )
+    }
+
+    #[test]
+    fn test_missing_management_url() {
+        let malformed_url = "";
+
+        let result = CommandManagerBuilder::new()
+            .management_url(malformed_url)
+            .build();
+
+        assert!(result.is_err());
+        let expected_error = match result {
+            Err(OpenvpnError::Io(ref e)) => e,
+            _ => panic!("expected io error"),
+        };
+
+        assert_eq!(ErrorKind::InvalidInput, expected_error.kind());
+    }
 }
