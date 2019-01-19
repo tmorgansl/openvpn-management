@@ -1,6 +1,6 @@
 //! openvpn-management is a wrapper to the [openvpn management interface](https://openvpn.net/community-resources/management-interface/).
 //! # Install:
-//! The crate is called `openvpn-management` use it by adding it as a dependency to your Cargo.toml file:
+//! The crate is called `openvpn-management`. You can use it by adding it as a dependency to your `Cargo.toml` file:
 //! ```ini
 //! [dependencies]
 //! openvpn-management = "*"
@@ -57,6 +57,7 @@ const HEADER_START_LINE: &str = "HEADER\tCLIENT_LIST";
 const UNDEF: &str = "UNDEF";
 
 #[derive(Clone, Debug, PartialEq)]
+/// Contains the marshalled response from the `status` command sent to the openvpn server
 pub struct Status {
     title: String,
     clients: Vec<Client>,

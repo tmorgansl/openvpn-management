@@ -7,7 +7,7 @@ Openvpn Management
 
 openvpn-management is a wrapper to the [openvpn management interface](https://openvpn.net/community-resources/management-interface/) for rust applications.
 # Install:
-The crate is called `openvpn-management` and you can depend on it via cargo:
+The crate is called `openvpn-management`. You can use it by adding it as a dependency to your `Cargo.toml` file:
 ```
 [dependencies]
 openvpn-management = "*"
